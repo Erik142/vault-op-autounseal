@@ -1,0 +1,34 @@
+# This workflow will build a container image and publish it to a private
+# container registry.
+
+name: Publish container image in registry
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: Get tag
+      uses: dawidd6/action-get-tag@v1
+      with:
+        strip_v: true
+      id: tag
+    - name: Build Ranch bot container image
+      run: docker build . -t ghcr.io/Erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }}
+    - name: Tag Docker images with "latest" tag
+      run: |
+        docker image tag ghcr.io/Erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }} ghcr.io/Erik142/vault-op-autounseal:latest
+    - name: Push Docker images to registry
+      run: |
+        docker push ghcr.io/Erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }}
+        docker push ghcr.io/Erik142/vault-op-autounseal:latest
