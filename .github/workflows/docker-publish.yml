@@ -24,11 +24,11 @@ jobs:
         strip_v: true
       id: tag
     - name: Build Ranch bot container image
-      run: docker build . -t ghcr.io/Erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }}
+      run: docker build . -t ghcr.io/erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }}
     - name: Tag Docker images with "latest" tag
       run: |
-        docker image tag ghcr.io/Erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }} ghcr.io/Erik142/vault-op-autounseal:latest
+        docker image tag ghcr.io/erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }} ghcr.io/erik142/vault-op-autounseal:latest
     - name: Push Docker images to registry
       run: |
-        docker push ghcr.io/Erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }}
-        docker push ghcr.io/Erik142/vault-op-autounseal:latest
+        docker push ghcr.io/erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }}
+        docker push ghcr.io/erik142/vault-op-autounseal:latest
