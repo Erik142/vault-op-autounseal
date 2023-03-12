@@ -104,6 +104,7 @@ func main() {
 					if err != nil {
 						fmt.Printf("ERROR: %v\n", err)
 					}
+					i++
 				}
 
 				if !status.Sealed {
