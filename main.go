@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-const VAULT_ADDRESS_TEMPLATE = "https://%s:8200"
+const VAULT_ADDRESS_TEMPLATE = "http://%s:8200"
 
 func main() {
 	var kubeconfig *string
