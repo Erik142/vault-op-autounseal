@@ -29,7 +29,7 @@ jobs:
       with:
         strip_v: true
       id: tag
-    - name: Build Ranch bot container image
+    - name: Build container image
       run: docker build . -t ghcr.io/erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }}
     - name: Tag Docker images with "latest" tag
       run: |
