@@ -107,7 +107,7 @@ func main() {
 				}
 
 				if !status.Sealed {
-					fmt.Printf("Pod %s has successfully been unsealed!", pod.Name)
+					fmt.Printf("Pod %s has successfully been unsealed!\n", pod.Name)
 				}
 			}
 		}
