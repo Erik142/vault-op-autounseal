@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/vault/api"
@@ -43,15 +44,25 @@ func main() {
 
 	keys := make([]string, 0)
 
-  secret, err := clientset.CoreV1().Secrets("vault").Get(context.TODO(), "vault", metav1.GetOptions{})
+	for len(keys) == 0 {
+		secret, err := clientset.CoreV1().Secrets("vault").Get(context.TODO(), "vault", metav1.GetOptions{})
 
-  if err != nil {
-    panic(err)
-  }
+		if err != nil {
+			panic(err)
+		}
 
-  for _, value := range secret.Data {
-    keys = append(keys, string(value))
-  }
+		for key, value := range secret.Data {
+			if strings.HasPrefix(key, "key") {
+				if string(value) == "" {
+					fmt.Printf("Key '%s' was empty! Trying to add secrets again in 5 seconds...\n", key)
+					time.Sleep(5 * time.Second)
+					keys = make([]string, 0)
+					continue
+				}
+				keys = append(keys, string(value))
+			}
+		}
+	}
 
 	for true {
 		statefulset, err := clientset.AppsV1().StatefulSets("vault").Get(context.TODO(), "vault", metav1.GetOptions{})
