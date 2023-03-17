@@ -45,7 +45,7 @@ func main() {
 	keys := make([]string, 0)
 
 	for len(keys) == 0 {
-		secret, err := clientset.CoreV1().Secrets("vault").Get(context.TODO(), "vault", metav1.GetOptions{})
+		secret, err := clientset.CoreV1().Secrets("vault").Get(context.Background(), "vault", metav1.GetOptions{})
 
 		if err != nil {
 			panic(err)
@@ -65,7 +65,7 @@ func main() {
 	}
 
 	for true {
-		statefulset, err := clientset.AppsV1().StatefulSets("vault").Get(context.TODO(), "vault", metav1.GetOptions{})
+		statefulset, err := clientset.AppsV1().StatefulSets("vault").Get(context.Background(), "vault", metav1.GetOptions{})
 
 		if err != nil {
 			panic(err)
@@ -77,7 +77,7 @@ func main() {
 			panic(err)
 		}
 
-		pods, err := clientset.CoreV1().Pods("vault").List(context.TODO(), metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()})
+		pods, err := clientset.CoreV1().Pods("vault").List(context.Background(), metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()})
 
 		if err != nil {
 			panic(err)
@@ -89,19 +89,38 @@ func main() {
 					continue
 			}
 
-			label, ok := pod.Labels["vault-sealed"]
+			initializedLabel, ok := pod.Labels["vault-initialized"]
+
+			if !ok {
+				fmt.Printf("Could not find label 'vault-initialized' for pod '%s'\n", pod.Name)
+				continue
+			}
+
+			if initializedLabel == "" {
+				fmt.Printf("The label 'vault-initialized' was empty for pod '%s'\n", pod.Name)
+				continue
+			}
+
+			isInitialized, err := strconv.ParseBool(initializedLabel)
+
+			if !isInitialized {
+				fmt.Printf("Vault pod '%s' has not been initialized...\n", pod.Name)
+				continue
+			}
+
+			sealedLabel, ok := pod.Labels["vault-sealed"]
 
 			if !ok {
 				fmt.Printf("Could not find label 'vault-sealed' for pod '%s'\n", pod.Name)
 				continue
 			}
 
-			if label == "" {
+			if sealedLabel == "" {
 				fmt.Printf("The label 'vault-sealed' was empty for pod '%s'\n", pod.Name)
 				continue
 			}
 
-			isSealed, err := strconv.ParseBool(label)
+			isSealed, err := strconv.ParseBool(sealedLabel)
 
 			if err != nil {
 				panic(err)
@@ -127,6 +146,11 @@ func main() {
 
 				i := 0
 
+				if !status.Initialized {
+					fmt.Println("Vault has not been initialized yet...")
+					time.Sleep(5 * time.Second)
+				}
+				
 				for status.Sealed && i < len(keys) {
 					status, err = vaultSys.Unseal(keys[i])
 					if err != nil {
