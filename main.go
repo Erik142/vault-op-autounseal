@@ -73,6 +73,11 @@ func main() {
 		}
 
 		for _, pod := range pods.Items {
+			if pod.Status.Phase != "Running" {
+					fmt.Printf("Pod %s is not running yet. Current status is %s", pod.Name, pod.Status.Phase)
+					continue
+			}
+
 			label, ok := pod.Labels["vault-sealed"]
 
 			if !ok {
