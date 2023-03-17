@@ -85,7 +85,7 @@ func main() {
 
 		for _, pod := range pods.Items {
 			if pod.Status.Phase != "Running" {
-					fmt.Printf("Pod %s is not running yet. Current status is %s", pod.Name, pod.Status.Phase)
+					fmt.Printf("Pod %s is not running yet. Current status is %s\n", pod.Name, pod.Status.Phase)
 					continue
 			}
 
