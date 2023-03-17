@@ -73,7 +73,19 @@ func main() {
 		}
 
 		for _, pod := range pods.Items {
-			isSealed, err := strconv.ParseBool(pod.Labels["vault-sealed"])
+			label, ok := pod.Labels["vault-sealed"]
+
+			if !ok {
+				fmt.Printf("Could not find label 'vault-sealed' for pod '%s'\n", pod.Name)
+				continue
+			}
+
+			if label == "" {
+				fmt.Printf("The label 'vault-sealed' was empty for pod '%s'\n", pod.Name)
+				continue
+			}
+
+			isSealed, err := strconv.ParseBool(label)
 
 			if err != nil {
 				panic(err)
