@@ -85,26 +85,7 @@ func main() {
 
 		for _, pod := range pods.Items {
 			if pod.Status.Phase != "Running" {
-					fmt.Printf("Pod %s is not running yet. Current status is %s\n", pod.Name, pod.Status.Phase)
-					continue
-			}
-
-			initializedLabel, ok := pod.Labels["vault-initialized"]
-
-			if !ok {
-				fmt.Printf("Could not find label 'vault-initialized' for pod '%s'\n", pod.Name)
-				continue
-			}
-
-			if initializedLabel == "" {
-				fmt.Printf("The label 'vault-initialized' was empty for pod '%s'\n", pod.Name)
-				continue
-			}
-
-			isInitialized, err := strconv.ParseBool(initializedLabel)
-
-			if !isInitialized {
-				fmt.Printf("Vault pod '%s' has not been initialized...\n", pod.Name)
+				fmt.Printf("Pod %s is not running yet. Current status is %s\n", pod.Name, pod.Status.Phase)
 				continue
 			}
 
@@ -127,7 +108,7 @@ func main() {
 			}
 
 			if isSealed {
-				fmt.Println("Found unsealed pod", pod.Name)
+				fmt.Println("Found sealed pod label for", pod.Name)
 				vaultconfig.Address = fmt.Sprintf(VAULT_ADDRESS_TEMPLATE, pod.Status.PodIP)
 				vault, err := api.NewClient(vaultconfig)
 
@@ -149,9 +130,16 @@ func main() {
 				if !status.Initialized {
 					fmt.Println("Vault has not been initialized yet...")
 					time.Sleep(5 * time.Second)
+					continue
 				}
-				
-				for status.Sealed && i < len(keys) {
+
+				if !status.Sealed {
+					fmt.Printf("Received unsealed status from Vault API for pod '%s', aborting...\n", pod.Name)
+					time.Sleep(5 * time.Second)
+					continue
+				}
+
+				for i < len(keys) {
 					status, err = vaultSys.Unseal(keys[i])
 					if err != nil {
 						fmt.Printf("ERROR: %v\n", err)
