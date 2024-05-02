@@ -110,19 +110,16 @@ func GetVaultPodIpAddresses(clientset *kubernetes.Clientset) ([]string, error) {
 }
 
 func PushVaultKeys(initResponse *api.InitResponse) error {
-	fmt.Printf("OP_CONNECT_HOST: %v\n", OP_CONNECT_HOST)
-	fmt.Printf("OP_CONNECT_TOKEN: %v\n", OP_CONNECT_TOKEN)
-
 	client := connect.NewClient(OP_CONNECT_HOST, OP_CONNECT_TOKEN)
 
 	secret, err := client.GetItem("Vault", "DevOps")
 
 	if err != nil {
-		for i, key := range initResponse.Keys {
+		for i, key := range initResponse.KeysB64 {
 			fmt.Printf("key-%d: %v\n", (i + 1), key)
 		}
 
-		for i, key := range initResponse.RecoveryKeys {
+		for i, key := range initResponse.RecoveryKeysB64 {
 			fmt.Printf("recoverykey-%d: %v\n", (i + 1), key)
 		}
 
@@ -145,7 +142,7 @@ func PushVaultKeys(initResponse *api.InitResponse) error {
 
 			index = index - 1
 
-			field.Value = initResponse.Keys[index]
+			field.Value = initResponse.KeysB64[index]
 			updatedFields = append(updatedFields, field)
 		}
 	}
@@ -188,7 +185,7 @@ func (self *Vault) Init() error {
 			return fmt.Errorf("Could not initialize Vault: %v\n", err)
 		}
 
-		self.Keys = initResult.Keys
+		self.Keys = initResult.KeysB64
 
 		return PushVaultKeys(initResult)
 	}
