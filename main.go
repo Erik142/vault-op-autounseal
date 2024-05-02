@@ -211,7 +211,7 @@ func (self *Vault) Unseal() error {
 			continue
 		}
 
-		fmt.Printf("Found unsealed Vault Pod with IP address: %v\n", ipaddr)
+		fmt.Printf("Found sealed Vault Pod with IP address: %v\n", ipaddr)
 
 		for _, key := range self.Keys {
 			sealResponse, err := client.Sys().Unseal(key)
@@ -220,13 +220,19 @@ func (self *Vault) Unseal() error {
 				return fmt.Errorf("Could not unseal Vault Pod with IP address: %v - %v\n", ipaddr, err)
 			}
 
-			if !sealResponse.Initialized {
-				return fmt.Errorf("Could not unseal Vault Pod with IP address: %v - Vault Pod is not initialized\n", ipaddr)
+			if !sealResponse.Sealed {
+				break
 			}
+		}
 
-			if sealResponse.Sealed {
-				return fmt.Errorf("Could not unseal Vault Pod with IP address: %v\n", ipaddr)
-			}
+		sealStatus, err = client.Sys().SealStatus()
+
+		if err != nil {
+			return fmt.Errorf("Could not retrieve Vault seal status: %v\n", err)
+		}
+
+		if sealStatus.Sealed {
+			return fmt.Errorf("Could not unseal Vault Pod with IP address: %v\n", ipaddr)
 		}
 	}
 
