@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/1Password/connect-sdk-go/connect"
+	"github.com/1Password/connect-sdk-go/onepassword"
 	"github.com/hashicorp/vault/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -19,6 +21,217 @@ import (
 )
 
 const VAULT_ADDRESS_TEMPLATE = "http://%s:8200"
+
+type Vault struct {
+	Keys        []string
+	IpAddresses []string
+}
+
+var OP_CONNECT_HOST string = "http://op-connect.k8s.gbg.wahlberger.lan"
+var OP_CONNECT_TOKEN string = ""
+
+func NewVault(clientset *kubernetes.Clientset) (*Vault, error) {
+	keys, _ := GetVaultKeysFromSecret(clientset)
+	ipaddrs, err := GetVaultPodIpAddresses(clientset)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &Vault{Keys: keys, IpAddresses: ipaddrs}, nil
+}
+
+func NewVaultApiClient(ipaddr string) (*api.Client, error) {
+	vaultconfig := api.DefaultConfig()
+	vaultconfig.Address = fmt.Sprintf(VAULT_ADDRESS_TEMPLATE, ipaddr)
+	return api.NewClient(vaultconfig)
+}
+
+func GetVaultKeysFromSecret(clientset *kubernetes.Clientset) ([]string, error) {
+	keys := make([]string, 0)
+	secret, err := clientset.CoreV1().Secrets("vault").Get(context.Background(), "vault", metav1.GetOptions{})
+
+	if err != nil {
+		return keys, err
+	}
+
+	for key, value := range secret.Data {
+		if strings.HasPrefix(key, "key") {
+			if string(value) == "" {
+				return keys, fmt.Errorf("Key '%s' value is empty.\n", key)
+			}
+			keys = append(keys, string(value))
+		}
+	}
+
+	return keys, nil
+}
+
+func GetOnepasswordTokenFromSecret(clientset *kubernetes.Clientset) (string, error) {
+	secret, err := clientset.CoreV1().Secrets("vault").Get(context.Background(), "onepassword-token", metav1.GetOptions{})
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(secret.Data["onepassword-token"]), nil
+}
+
+func GetVaultPodIpAddresses(clientset *kubernetes.Clientset) ([]string, error) {
+	ipaddrs := make([]string, 0)
+
+	statefulset, err := clientset.AppsV1().StatefulSets("vault").Get(context.Background(), "vault", metav1.GetOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	labelMap, err := metav1.LabelSelectorAsMap(statefulset.Spec.Selector)
+
+	if err != nil {
+		return nil, err
+	}
+
+	pods, err := clientset.CoreV1().Pods("vault").List(context.Background(), metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()})
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, pod := range pods.Items {
+		if pod.Status.Phase != "Running" {
+			return nil, fmt.Errorf("Pod %s is not running yet. Current status is %s\n", pod.Name, pod.Status.Phase)
+		}
+
+		ipaddrs = append(ipaddrs, pod.Status.PodIP)
+	}
+
+	return ipaddrs, nil
+}
+
+func PushVaultKeys(initResponse *api.InitResponse) error {
+	client := connect.NewClient(OP_CONNECT_HOST, OP_CONNECT_TOKEN)
+
+	secret, err := client.GetItem("Vault", "DevOps")
+
+	if err != nil {
+		for i, key := range initResponse.Keys {
+			fmt.Printf("key-%d: %s\n", (i + 1), key)
+		}
+
+		for i, key := range initResponse.RecoveryKeys {
+			fmt.Printf("recoverykey-%d: %s\n", (i + 1), key)
+		}
+
+		fmt.Printf("root-token: %s\n", initResponse.RootToken)
+
+		return fmt.Errorf("Could not update 1password Vault keys: %s\n", err)
+	}
+
+	updatedFields := make([]*onepassword.ItemField, 0)
+
+	for _, field := range secret.Fields {
+		label := field.Label
+
+		if strings.HasPrefix(label, "key-") {
+			index, err := strconv.Atoi(strings.ReplaceAll(label, "key-", ""))
+
+			if err != nil {
+				return fmt.Errorf("Could not parse 1Password secret key index: %s\n", err)
+			}
+
+			index = index - 1
+
+			field.Value = initResponse.Keys[index]
+			updatedFields = append(updatedFields, field)
+		}
+	}
+
+	secret.Fields = updatedFields
+	client.UpdateItem(secret, "")
+
+	return nil
+}
+
+func (self *Vault) Init() error {
+	isInitialized := true
+
+	for _, ipaddr := range self.IpAddresses {
+		client, err := NewVaultApiClient(ipaddr)
+
+		if err != nil {
+			return fmt.Errorf("Could not create Vault API client for Pod with IP address: %s\n", ipaddr)
+		}
+
+		initStatus, err := client.Sys().InitStatus()
+
+		if err != nil {
+			return fmt.Errorf("Could not retrieve init status for Pod with IP address: %s\n", ipaddr)
+		}
+
+		isInitialized = isInitialized && initStatus
+	}
+
+	if !isInitialized {
+		client, err := NewVaultApiClient(self.IpAddresses[0])
+
+		if err != nil {
+			return fmt.Errorf("Could not create Vault API client for Pod with IP address: %s\n", self.IpAddresses[0])
+		}
+
+		initResult, err := client.Sys().InitWithContext(context.Background(), &api.InitRequest{})
+
+		if err != nil {
+			return fmt.Errorf("Could not initialize Vault: %s\n", err)
+		}
+
+		self.Keys = initResult.Keys
+
+		return PushVaultKeys(initResult)
+	}
+
+	return nil
+}
+
+func (self *Vault) Unseal() error {
+	for _, ipaddr := range self.IpAddresses {
+		client, err := NewVaultApiClient(ipaddr)
+
+		if err != nil {
+			return fmt.Errorf("Could not create Vault API client for Pod with IP address: %s\n", ipaddr)
+		}
+
+		sealStatus, err := client.Sys().SealStatus()
+
+		if err != nil {
+			return fmt.Errorf("Could not retrieve Vault seal status: %s\n", err)
+		}
+
+		if !sealStatus.Sealed {
+			continue
+		}
+
+		fmt.Println("Found unsealed Vault Pod with IP address: %s\n", ipaddr)
+
+		for _, key := range self.Keys {
+			sealResponse, err := client.Sys().Unseal(key)
+
+			if err != nil {
+				return fmt.Errorf("Could not unseal Vault Pod with IP address: %s - %s\n", ipaddr, err)
+			}
+
+			if !sealResponse.Initialized {
+				return fmt.Errorf("Could not unseal Vault Pod with IP address: %s - Vault Pod is not initialized\n", ipaddr)
+			}
+
+			if sealResponse.Sealed {
+				return fmt.Errorf("Could not unseal Vault Pod with IP address: %s\n", ipaddr)
+			}
+		}
+	}
+
+	return nil
+}
 
 func main() {
 	var kubeconfig *string
@@ -40,117 +253,32 @@ func main() {
 	}
 
 	clientset := kubernetes.NewForConfigOrDie(config)
-	vaultconfig := api.DefaultConfig()
 
-	keys := make([]string, 0)
+	opToken, err := GetOnepasswordTokenFromSecret(clientset)
 
-	for len(keys) == 0 {
-		secret, err := clientset.CoreV1().Secrets("vault").Get(context.Background(), "vault", metav1.GetOptions{})
-
-		if err != nil {
-			panic(err)
-		}
-
-		for key, value := range secret.Data {
-			if strings.HasPrefix(key, "key") {
-				if string(value) == "" {
-					fmt.Printf("Key '%s' was empty! Trying to add secrets again in 5 seconds...\n", key)
-					time.Sleep(5 * time.Second)
-					keys = make([]string, 0)
-					continue
-				}
-				keys = append(keys, string(value))
-			}
-		}
+	if err != nil {
+		panic(err)
 	}
 
+	OP_CONNECT_TOKEN = opToken
+
 	for true {
-		statefulset, err := clientset.AppsV1().StatefulSets("vault").Get(context.Background(), "vault", metav1.GetOptions{})
+		vault, err := NewVault(clientset)
 
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			time.Sleep(5 * time.Second)
+			continue
 		}
 
-		labelMap, err := metav1.LabelSelectorAsMap(statefulset.Spec.Selector)
-
-		if err != nil {
-			panic(err)
+		if err = vault.Init(); err != nil {
+			fmt.Println(err)
+			time.Sleep(5 * time.Second)
+			continue
 		}
 
-		pods, err := clientset.CoreV1().Pods("vault").List(context.Background(), metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()})
-
-		if err != nil {
-			panic(err)
-		}
-
-		for _, pod := range pods.Items {
-			if pod.Status.Phase != "Running" {
-				fmt.Printf("Pod %s is not running yet. Current status is %s\n", pod.Name, pod.Status.Phase)
-				continue
-			}
-
-			sealedLabel, ok := pod.Labels["vault-sealed"]
-
-			if !ok {
-				fmt.Printf("Could not find label 'vault-sealed' for pod '%s'\n", pod.Name)
-				continue
-			}
-
-			if sealedLabel == "" {
-				fmt.Printf("The label 'vault-sealed' was empty for pod '%s'\n", pod.Name)
-				continue
-			}
-
-			isSealed, err := strconv.ParseBool(sealedLabel)
-
-			if err != nil {
-				panic(err)
-			}
-
-			if isSealed {
-				fmt.Println("Found sealed pod label for", pod.Name)
-				vaultconfig.Address = fmt.Sprintf(VAULT_ADDRESS_TEMPLATE, pod.Status.PodIP)
-				vault, err := api.NewClient(vaultconfig)
-
-				if err != nil {
-					fmt.Printf("ERROR: %v\n", err)
-					continue
-				}
-
-				vaultSys := vault.Sys()
-				status, err := vaultSys.SealStatus()
-
-				if err != nil {
-					fmt.Printf("ERROR: %v\n", err)
-					continue
-				}
-
-				i := 0
-
-				if !status.Initialized {
-					fmt.Println("Vault has not been initialized yet...")
-					time.Sleep(5 * time.Second)
-					continue
-				}
-
-				if !status.Sealed {
-					fmt.Printf("Received unsealed status from Vault API for pod '%s', aborting...\n", pod.Name)
-					time.Sleep(5 * time.Second)
-					continue
-				}
-
-				for i < len(keys) {
-					status, err = vaultSys.Unseal(keys[i])
-					if err != nil {
-						fmt.Printf("ERROR: %v\n", err)
-					}
-					i++
-				}
-
-				if !status.Sealed {
-					fmt.Printf("Pod %s has successfully been unsealed!\n", pod.Name)
-				}
-			}
+		if err = vault.Unseal(); err != nil {
+			fmt.Println(err)
 		}
 
 		time.Sleep(5 * time.Second)
