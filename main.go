@@ -179,7 +179,7 @@ func (self *Vault) Init() error {
 			return fmt.Errorf("Could not create Vault API client for Pod with IP address: %s - %s\n", self.IpAddresses[0], err)
 		}
 
-		initResult, err := client.Sys().InitWithContext(context.Background(), &api.InitRequest{})
+		initResult, err := client.Sys().InitWithContext(context.Background(), &api.InitRequest{SecretShares: 5, SecretThreshold: 3})
 
 		if err != nil {
 			return fmt.Errorf("Could not initialize Vault: %s\n", err)
