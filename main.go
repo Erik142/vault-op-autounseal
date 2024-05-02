@@ -160,13 +160,13 @@ func (self *Vault) Init() error {
 		client, err := NewVaultApiClient(ipaddr)
 
 		if err != nil {
-			return fmt.Errorf("Could not create Vault API client for Pod with IP address: %s\n", ipaddr)
+			return fmt.Errorf("Could not create Vault API client for Pod with IP address: %s - %s\n", ipaddr, err)
 		}
 
 		initStatus, err := client.Sys().InitStatus()
 
 		if err != nil {
-			return fmt.Errorf("Could not retrieve init status for Pod with IP address: %s\n", ipaddr)
+			return fmt.Errorf("Could not retrieve init status for Pod with IP address: %s - %s\n", ipaddr, err)
 		}
 
 		isInitialized = isInitialized && initStatus
@@ -176,7 +176,7 @@ func (self *Vault) Init() error {
 		client, err := NewVaultApiClient(self.IpAddresses[0])
 
 		if err != nil {
-			return fmt.Errorf("Could not create Vault API client for Pod with IP address: %s\n", self.IpAddresses[0])
+			return fmt.Errorf("Could not create Vault API client for Pod with IP address: %s - %s\n", self.IpAddresses[0], err)
 		}
 
 		initResult, err := client.Sys().InitWithContext(context.Background(), &api.InitRequest{})
