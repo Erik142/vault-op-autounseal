@@ -110,6 +110,9 @@ func GetVaultPodIpAddresses(clientset *kubernetes.Clientset) ([]string, error) {
 }
 
 func PushVaultKeys(initResponse *api.InitResponse) error {
+	fmt.Printf("OP_CONNECT_HOST: %v\n", OP_CONNECT_HOST)
+	fmt.Printf("OP_CONNECT_TOKEN: %v\n", OP_CONNECT_TOKEN)
+
 	client := connect.NewClient(OP_CONNECT_HOST, OP_CONNECT_TOKEN)
 
 	secret, err := client.GetItem("Vault", "DevOps")
@@ -211,7 +214,7 @@ func (self *Vault) Unseal() error {
 			continue
 		}
 
-		fmt.Println("Found unsealed Vault Pod with IP address: %v\n", ipaddr)
+		fmt.Printf("Found unsealed Vault Pod with IP address: %v\n", ipaddr)
 
 		for _, key := range self.Keys {
 			sealResponse, err := client.Sys().Unseal(key)
