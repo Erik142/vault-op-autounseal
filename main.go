@@ -143,8 +143,13 @@ func PushVaultKeys(initResponse *api.InitResponse) error {
 			index = index - 1
 
 			field.Value = initResponse.KeysB64[index]
-			updatedFields = append(updatedFields, field)
 		}
+
+		if label == "root-token" {
+			field.Value = initResponse.RootToken
+		}
+
+		updatedFields = append(updatedFields, field)
 	}
 
 	secret.Fields = updatedFields
