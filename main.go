@@ -11,6 +11,7 @@ import (
 
 	"github.com/1Password/connect-sdk-go/connect"
 	"github.com/1Password/connect-sdk-go/onepassword"
+	"github.com/Erik142/vault-op-autounseal/config"
 	"github.com/hashicorp/vault/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -20,15 +21,14 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-const VAULT_ADDRESS_TEMPLATE = "http://%s:8200"
+const VAULT_ADDRESS_TEMPLATE = "%s://%s:%s"
 
 type Vault struct {
 	Keys        []string
 	IpAddresses []string
 }
 
-var OP_CONNECT_HOST string = "http://op-connect.k8s.gbg.wahlberger.lan"
-var OP_CONNECT_TOKEN string = ""
+var Config config.Config
 
 func NewVault(clientset *kubernetes.Clientset) (*Vault, error) {
 	keys, _ := GetVaultKeysFromSecret(clientset)
@@ -43,7 +43,7 @@ func NewVault(clientset *kubernetes.Clientset) (*Vault, error) {
 
 func NewVaultApiClient(ipaddr string) (*api.Client, error) {
 	vaultconfig := api.DefaultConfig()
-	vaultconfig.Address = fmt.Sprintf(VAULT_ADDRESS_TEMPLATE, ipaddr)
+	vaultconfig.Address = fmt.Sprintf(VAULT_ADDRESS_TEMPLATE, Config.Protocol, ipaddr, Config.Port)
 	return api.NewClient(vaultconfig)
 }
 
@@ -65,16 +65,6 @@ func GetVaultKeysFromSecret(clientset *kubernetes.Clientset) ([]string, error) {
 	}
 
 	return keys, nil
-}
-
-func GetOnepasswordTokenFromSecret(clientset *kubernetes.Clientset) (string, error) {
-	secret, err := clientset.CoreV1().Secrets("vault").Get(context.Background(), "onepassword-token", metav1.GetOptions{})
-
-	if err != nil {
-		return "", err
-	}
-
-	return string(secret.Data["onepassword-token"]), nil
 }
 
 func GetVaultPodIpAddresses(clientset *kubernetes.Clientset) ([]string, error) {
@@ -110,7 +100,7 @@ func GetVaultPodIpAddresses(clientset *kubernetes.Clientset) ([]string, error) {
 }
 
 func PushVaultKeys(initResponse *api.InitResponse) error {
-	client := connect.NewClient(OP_CONNECT_HOST, OP_CONNECT_TOKEN)
+	client := connect.NewClient(Config.OnePassword.Host, Config.OnePassword.Token)
 
 	secret, err := client.GetItem("Vault", "DevOps")
 
@@ -254,24 +244,18 @@ func main() {
 	flag.Parse()
 
 	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 
 	if err != nil {
-		config, err = rest.InClusterConfig()
+		restConfig, err = rest.InClusterConfig()
 		if err != nil {
 			panic(err.Error())
 		}
 	}
 
-	clientset := kubernetes.NewForConfigOrDie(config)
+	clientset := kubernetes.NewForConfigOrDie(restConfig)
 
-	opToken, err := GetOnepasswordTokenFromSecret(clientset)
-
-	if err != nil {
-		panic(err)
-	}
-
-	OP_CONNECT_TOKEN = opToken
+	Config = config.GetConfig()
 
 	for true {
 		vault, err := NewVault(clientset)
