@@ -21,29 +21,28 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-const VAULT_ADDRESS_TEMPLATE = "%s://%s:%s"
-
 type Vault struct {
-	Keys        []string
-	IpAddresses []string
+	Keys         []string
+	ApiAddresses []string
 }
 
 var Config config.Config
 
 func NewVault(clientset *kubernetes.Clientset) (*Vault, error) {
 	keys, _ := GetVaultKeysFromSecret(clientset)
-	ipaddrs, err := GetVaultPodIpAddresses(clientset)
+	apiaddrs, err := GetVaultPodApiAddresses(clientset)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Vault{Keys: keys, IpAddresses: ipaddrs}, nil
+	return &Vault{Keys: keys, ApiAddresses: apiaddrs}, nil
 }
 
-func NewVaultApiClient(ipaddr string) (*api.Client, error) {
+func NewVaultApiClient(apiaddr string) (*api.Client, error) {
 	vaultconfig := api.DefaultConfig()
-	vaultconfig.Address = fmt.Sprintf(VAULT_ADDRESS_TEMPLATE, Config.Protocol, ipaddr, Config.Port)
+	vaultconfig.Address = apiaddr
+	vaultconfig.ConfigureTLS(&api.TLSConfig{Insecure: true})
 	return api.NewClient(vaultconfig)
 }
 
@@ -67,8 +66,8 @@ func GetVaultKeysFromSecret(clientset *kubernetes.Clientset) ([]string, error) {
 	return keys, nil
 }
 
-func GetVaultPodIpAddresses(clientset *kubernetes.Clientset) ([]string, error) {
-	ipaddrs := make([]string, 0)
+func GetVaultPodApiAddresses(clientset *kubernetes.Clientset) ([]string, error) {
+	apiaddrs := make([]string, 0)
 
 	statefulset, err := clientset.AppsV1().StatefulSets("vault").Get(context.Background(), "vault", metav1.GetOptions{})
 
@@ -93,10 +92,26 @@ func GetVaultPodIpAddresses(clientset *kubernetes.Clientset) ([]string, error) {
 			return nil, fmt.Errorf("Pod %s is not running yet. Current status is %s\n", pod.Name, pod.Status.Phase)
 		}
 
-		ipaddrs = append(ipaddrs, pod.Status.PodIP)
+		for _, container := range pod.Spec.Containers {
+			if container.Name == "vault" {
+				for _, env := range container.Env {
+					if env.Name == "VAULT_API_ADDR" {
+						apiaddr := env.Value
+						apiaddr = strings.ReplaceAll(apiaddr, "$(POD_IP)", pod.Status.PodIP)
+						fmt.Printf("Found Vault API address: %v\n", apiaddr)
+						apiaddrs = append(apiaddrs, apiaddr)
+						break
+					}
+				}
+			}
+		}
 	}
 
-	return ipaddrs, nil
+	if len(apiaddrs) == 0 {
+		return nil, fmt.Errorf("Could not find Vault API addresses")
+	}
+
+	return apiaddrs, nil
 }
 
 func PushVaultKeys(initResponse *api.InitResponse) error {
@@ -151,27 +166,27 @@ func PushVaultKeys(initResponse *api.InitResponse) error {
 func (self *Vault) Init() error {
 	isInitialized := true
 
-	for _, ipaddr := range self.IpAddresses {
-		client, err := NewVaultApiClient(ipaddr)
+	for _, apiaddr := range self.ApiAddresses {
+		client, err := NewVaultApiClient(apiaddr)
 
 		if err != nil {
-			return fmt.Errorf("Could not create Vault API client for Pod with IP address: %v - %v\n", ipaddr, err)
+			return fmt.Errorf("Could not create Vault API client for Pod with API address: %v - %v\n", apiaddr, err)
 		}
 
 		initStatus, err := client.Sys().InitStatus()
 
 		if err != nil {
-			return fmt.Errorf("Could not retrieve init status for Pod with IP address: %v - %v\n", ipaddr, err)
+			return fmt.Errorf("Could not retrieve init status for Pod with API address: %v - %v\n", apiaddr, err)
 		}
 
 		isInitialized = isInitialized && initStatus
 	}
 
 	if !isInitialized {
-		client, err := NewVaultApiClient(self.IpAddresses[0])
+		client, err := NewVaultApiClient(self.ApiAddresses[0])
 
 		if err != nil {
-			return fmt.Errorf("Could not create Vault API client for Pod with IP address: %v - %v\n", self.IpAddresses[0], err)
+			return fmt.Errorf("Could not create Vault API client for Pod with API address: %v - %v\n", self.ApiAddresses[0], err)
 		}
 
 		initResult, err := client.Sys().InitWithContext(context.Background(), &api.InitRequest{SecretShares: 5, SecretThreshold: 3})
@@ -189,11 +204,11 @@ func (self *Vault) Init() error {
 }
 
 func (self *Vault) Unseal() error {
-	for _, ipaddr := range self.IpAddresses {
-		client, err := NewVaultApiClient(ipaddr)
+	for _, apiaddr := range self.ApiAddresses {
+		client, err := NewVaultApiClient(apiaddr)
 
 		if err != nil {
-			return fmt.Errorf("Could not create Vault API client for Pod with IP address: %v\n", ipaddr)
+			return fmt.Errorf("Could not create Vault API client for Pod with API address: %v\n", apiaddr)
 		}
 
 		sealStatus, err := client.Sys().SealStatus()
@@ -206,13 +221,13 @@ func (self *Vault) Unseal() error {
 			continue
 		}
 
-		fmt.Printf("Found sealed Vault Pod with IP address: %v\n", ipaddr)
+		fmt.Printf("Found sealed Vault Pod with API address: %v\n", apiaddr)
 
 		for _, key := range self.Keys {
 			sealResponse, err := client.Sys().Unseal(key)
 
 			if err != nil {
-				return fmt.Errorf("Could not unseal Vault Pod with IP address: %v - %v\n", ipaddr, err)
+				return fmt.Errorf("Could not unseal Vault Pod with API address: %v - %v\n", apiaddr, err)
 			}
 
 			if !sealResponse.Sealed {
@@ -227,7 +242,7 @@ func (self *Vault) Unseal() error {
 		}
 
 		if sealStatus.Sealed {
-			return fmt.Errorf("Could not unseal Vault Pod with IP address: %v\n", ipaddr)
+			return fmt.Errorf("Could not unseal Vault Pod with API address: %v\n", apiaddr)
 		}
 	}
 
