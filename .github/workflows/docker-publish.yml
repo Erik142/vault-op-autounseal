@@ -38,5 +38,3 @@ jobs:
         tags: |
             ghcr.io/erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }}
             ghcr.io/erik142/vault-op-autounseal:latest
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
