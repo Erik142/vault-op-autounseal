@@ -49,7 +49,7 @@ func NewVaultApiClient(apiaddr string) (*api.Client, error) {
 
 func GetVaultKeysFromSecret(clientset *kubernetes.Clientset) ([]string, error) {
 	keys := make([]string, 0)
-	secret, err := clientset.CoreV1().Secrets("vault").Get(context.Background(), "vault", metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(Config.OnePassword.ItemMetadata.Namespace).Get(context.Background(), Config.OnePassword.ItemMetadata.Name, metav1.GetOptions{})
 
 	if err != nil {
 		return keys, err
@@ -70,7 +70,7 @@ func GetVaultKeysFromSecret(clientset *kubernetes.Clientset) ([]string, error) {
 func GetVaultPodApiAddresses(clientset *kubernetes.Clientset) ([]string, error) {
 	apiaddrs := make([]string, 0)
 
-	statefulset, err := clientset.AppsV1().StatefulSets("vault").Get(context.Background(), "vault", metav1.GetOptions{})
+	statefulset, err := clientset.AppsV1().StatefulSets(Config.StatefulSetNamespace).Get(context.Background(), Config.StatefulSetName, metav1.GetOptions{})
 
 	if err != nil {
 		return nil, err
@@ -82,7 +82,7 @@ func GetVaultPodApiAddresses(clientset *kubernetes.Clientset) ([]string, error) 
 		return nil, err
 	}
 
-	pods, err := clientset.CoreV1().Pods("vault").List(context.Background(), metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()})
+	pods, err := clientset.CoreV1().Pods(Config.StatefulSetNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()})
 
 	if err != nil {
 		return nil, err

@@ -11,7 +11,9 @@ import (
 )
 
 type Config struct {
-	OnePassword OnePassword
+	StatefulSetName      string
+	StatefulSetNamespace string
+	OnePassword          OnePassword
 }
 
 type OnePassword struct {
@@ -21,17 +23,25 @@ type OnePassword struct {
 }
 
 type OnePasswordItemMetadata struct {
-	Name  string
-	Vault string
+	Name      string
+	Namespace string
+	Vault     string
 }
 
+const EnvVaultStatefulSetName = "VAULT_STATEFULSET_NAME"
+const EnvVaultStatefulSetNamespace = "VAULT_STATEFULSET_NAMESPACE"
+const EnvVaultNamespace = "VAULT_NAMESPACE"
 const EnvOnePasswordHost = "ONEPASSWORD_HOSTNAME"
 const EnvOnePasswordToken = "ONEPASSWORD_TOKEN"
 const EnvOnePasswordItemName = "ONEPASSWORD_ITEM_NAME"
+const EnvOnePasswordItemNamespace = "ONEPASSWORD_ITEM_NAMESPACE"
 
+const DefaultVaultStatefulSetName = "vault"
+const DefaultVaultStatefulSetNamespace = "vault"
 const DefaultOnePasswordHost = "op-connect.svc.cluster.local"
 const DefaultOnePasswordToken = ""
 const DefaultOnePasswordItemName = "vault"
+const DefaultOnePasswordItemNamespace = "vault"
 
 func getEnvOrDefaultValue(envName, defaultValue string) string {
 	value := os.Getenv(envName)
@@ -45,6 +55,7 @@ func getEnvOrDefaultValue(envName, defaultValue string) string {
 
 func GetOnePasswordItemMetadata(kubeclient client.Client) (OnePasswordItemMetadata, error) {
 	opItemName := getEnvOrDefaultValue(EnvOnePasswordItemName, DefaultOnePasswordItemName)
+	opItemNamespace := getEnvOrDefaultValue(EnvOnePasswordItemNamespace, DefaultOnePasswordItemNamespace)
 	opItemMetadata := OnePasswordItemMetadata{}
 
 	u := &unstructured.Unstructured{}
@@ -55,7 +66,7 @@ func GetOnePasswordItemMetadata(kubeclient client.Client) (OnePasswordItemMetada
 	})
 
 	err := kubeclient.Get(context.Background(), client.ObjectKey{
-		Namespace: "vault",
+		Namespace: opItemNamespace,
 		Name:      opItemName,
 	}, u)
 
@@ -69,6 +80,7 @@ func GetOnePasswordItemMetadata(kubeclient client.Client) (OnePasswordItemMetada
 
 	opItemMetadata.Vault = itemVault
 	opItemMetadata.Name = itemName
+	opItemMetadata.Namespace = opItemNamespace
 
 	return opItemMetadata, nil
 }
@@ -77,6 +89,8 @@ func GetConfig(kubeclient client.Client) (Config, error) {
 	itemMetadata, err := GetOnePasswordItemMetadata(kubeclient)
 
 	return Config{
+		StatefulSetName:      getEnvOrDefaultValue(EnvVaultStatefulSetName, DefaultVaultStatefulSetName),
+		StatefulSetNamespace: getEnvOrDefaultValue(EnvVaultStatefulSetNamespace, DefaultVaultStatefulSetNamespace),
 		OnePassword: OnePassword{
 			Host:         getEnvOrDefaultValue(EnvOnePasswordHost, DefaultOnePasswordHost),
 			Token:        getEnvOrDefaultValue(EnvOnePasswordToken, DefaultOnePasswordToken),
