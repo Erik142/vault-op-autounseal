@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: login to GitHub Container Registry
-      uses: docker/login-action@v1
+      uses: docker/login-action@v3
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
@@ -29,12 +29,14 @@ jobs:
       with:
         strip_v: true
       id: tag
-    - name: Build container image
-      run: docker build . -t ghcr.io/erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }}
-    - name: Tag Docker images with "latest" tag
-      run: |
-        docker image tag ghcr.io/erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }} ghcr.io/erik142/vault-op-autounseal:latest
-    - name: Push Docker images to registry
-      run: |
-        docker push ghcr.io/erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }}
-        docker push ghcr.io/erik142/vault-op-autounseal:latest
+    - name: Build and publish container image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: |
+            ghcr.io/erik142/vault-op-autounseal:${{ steps.tag.outputs.tag }}
+            ghcr.io/erik142/vault-op-autounseal:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
