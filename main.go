@@ -284,6 +284,19 @@ func main() {
 	}
 
 	for true {
+		_, err := clientset.AppsV1().StatefulSets(Config.StatefulSetNamespace).Get(context.Background(), Config.StatefulSetName, metav1.GetOptions{})
+
+		if err != nil {
+			fmt.Printf("Waiting for Vault Statefulset '%s' to be created...\n", Config.StatefulSetName)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		fmt.Printf("Found Vault Statefulset '%s'!\n", Config.StatefulSetName)
+		break
+	}
+
+	for true {
 		vault, err := NewVault(clientset)
 
 		if err != nil {
