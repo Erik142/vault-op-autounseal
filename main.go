@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Vault struct {
@@ -117,7 +118,7 @@ func GetVaultPodApiAddresses(clientset *kubernetes.Clientset) ([]string, error) 
 func PushVaultKeys(initResponse *api.InitResponse) error {
 	client := connect.NewClient(Config.OnePassword.Host, Config.OnePassword.Token)
 
-	secret, err := client.GetItem("Vault", "DevOps")
+	secret, err := client.GetItem(Config.OnePassword.ItemMetadata.Name, Config.OnePassword.ItemMetadata.Vault)
 
 	if err != nil {
 		for i, key := range initResponse.KeysB64 {
@@ -268,9 +269,19 @@ func main() {
 		}
 	}
 
+	client, err := client.New(restConfig, client.Options{})
+
+	if err != nil {
+		panic(fmt.Errorf("Could not create Kubernetes client: %v\n", err))
+	}
+
 	clientset := kubernetes.NewForConfigOrDie(restConfig)
 
-	Config = config.GetConfig()
+	Config, err = config.GetConfig(client)
+
+	if err != nil {
+		panic(fmt.Errorf("Could not create application configuration: %v\n", err))
+	}
 
 	for true {
 		vault, err := NewVault(clientset)
