@@ -48,12 +48,12 @@ func (self *AutoUnsealController) Reconcile() error {
 		_, err := self.ClientSet.AppsV1().StatefulSets(self.Config.StatefulSetNamespace).Get(context.Background(), self.Config.StatefulSetName, metav1.GetOptions{})
 
 		if err != nil {
-			log.Infof("Waiting for Vault Statefulset '%s' to be created...\n", self.Config.StatefulSetName)
+			log.Infof("Waiting for Vault Statefulset '%s' to be created...", self.Config.StatefulSetName)
 			time.Sleep(5 * time.Second)
 			continue
 		}
 
-		log.Infof("Found Vault Statefulset '%s'!\n", self.Config.StatefulSetName)
+		log.Infof("Found Vault Statefulset '%s'!", self.Config.StatefulSetName)
 		break
 	}
 

@@ -127,7 +127,7 @@ func getPodApiAddresses(clientset *kubernetes.Clientset) ([]string, error) {
 						apiaddr = strings.ReplaceAll(apiaddr, "$(POD_IP)", pod.Status.PodIP)
 						apiaddrs = append(apiaddrs, apiaddr)
 
-						log.Infof("Found Vault API address: %v\n", apiaddr)
+						log.Infof("Found Vault API address: %v", apiaddr)
 						break
 					}
 				}
@@ -202,7 +202,7 @@ func (self *Vault) Unseal() error {
 			continue
 		}
 
-		log.Infof("Found sealed Vault Pod with API address: %v\n", apiaddr)
+		log.Infof("Found sealed Vault Pod with API address: %v", apiaddr)
 
 		for _, key := range self.Keys {
 			sealResponse, err := client.Sys().Unseal(key)

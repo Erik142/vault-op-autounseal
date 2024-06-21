@@ -22,7 +22,7 @@ func UpdateSecret(keys map[string]string) error {
 
 	if err != nil {
 		for name, key := range keys {
-			log.Infof("%v: %v\n", name, key)
+			log.Infof("%v: %v", name, key)
 		}
 
 		return fmt.Errorf("Could not update 1password Vault keys: %v\n", err)
