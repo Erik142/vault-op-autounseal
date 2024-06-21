@@ -8,9 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: 'recursive'
+          fetch-tags: true
       - name: Get next version number
         id: version-retriever
         run: echo "new_version=$(make version_bump)" >> "$GITHUB_ENV"
