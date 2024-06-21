@@ -10,8 +10,8 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
           fetch-tags: true
+          fetch-depth: 0
       - name: Get next version number
         id: version-retriever
         run: echo "new_version=$(make version_bump)" >> "$GITHUB_ENV"
