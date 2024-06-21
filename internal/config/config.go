@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 
@@ -43,6 +44,13 @@ const DefaultOnePasswordToken = ""
 const DefaultOnePasswordItemName = "vault"
 const DefaultOnePasswordItemNamespace = "vault"
 
+const OnePasswordItemGroup = "onepassword.com"
+const OnePasswordItemKind = "OnePasswordItem"
+const OnePasswordItemVersion = "v1"
+
+const Spec = "spec"
+const ItemPath = "itemPath"
+
 func getEnvOrDefaultValue(envName, defaultValue string) string {
 	value := os.Getenv(envName)
 
@@ -60,9 +68,9 @@ func GetOnePasswordItemMetadata(kubeclient client.Client) (OnePasswordItemMetada
 
 	u := &unstructured.Unstructured{}
 	u.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "onepassword.com",
-		Kind:    "OnePasswordItem",
-		Version: "v1",
+		Group:   OnePasswordItemGroup,
+		Kind:    OnePasswordItemKind,
+		Version: OnePasswordItemVersion,
 	})
 
 	err := kubeclient.Get(context.Background(), client.ObjectKey{
@@ -74,9 +82,38 @@ func GetOnePasswordItemMetadata(kubeclient client.Client) (OnePasswordItemMetada
 		return opItemMetadata, err
 	}
 
-	itemPath := u.Object["spec"].(map[string]interface{})["itemPath"].(string)
-	itemVault := strings.Split(itemPath, "/")[1]
-	itemName := strings.Split(itemPath, "/")[3]
+	itemSpecInterface, ok := u.Object[Spec]
+
+	if !ok {
+		return opItemMetadata, fmt.Errorf("Could not retrieve 'spec' property of the OnePasswordItem named '%s'\n", opItemName)
+	}
+
+	itemSpec, ok := itemSpecInterface.(map[string]interface{})
+
+	if !ok {
+		return opItemMetadata, fmt.Errorf("Could not cast 'spec' property of the OnePasswordItem named '%s' to map[string]interface{}\n", opItemName)
+	}
+
+	itemPathInterface, ok := itemSpec[ItemPath]
+
+	if !ok {
+		return opItemMetadata, fmt.Errorf("Could not retrieve 'spec.itemPath' property of the OnePasswordItem named '%s'\n", opItemName)
+	}
+
+	itemPath, ok := itemPathInterface.(string)
+
+	if !ok {
+		return opItemMetadata, fmt.Errorf("Could not cast 'spec.itemPath' property of the OnePasswordItem named '%s' to string\n", opItemName)
+	}
+
+	itemPathParts := strings.Split(itemPath, "/")
+
+	if len(itemPathParts) < 4 {
+		return opItemMetadata, fmt.Errorf("Expected at least 4 items in itemPathParts, got %d\n", len(itemPathParts))
+	}
+
+	itemVault := itemPathParts[1]
+	itemName := itemPathParts[3]
 
 	opItemMetadata.Vault = itemVault
 	opItemMetadata.Name = itemName
