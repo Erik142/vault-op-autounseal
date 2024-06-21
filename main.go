@@ -11,7 +11,7 @@ import (
 
 	"github.com/1Password/connect-sdk-go/connect"
 	"github.com/1Password/connect-sdk-go/onepassword"
-	"github.com/Erik142/vault-op-autounseal/config"
+	"github.com/Erik142/vault-op-autounseal/internal/config"
 	"github.com/hashicorp/vault/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
