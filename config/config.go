@@ -43,6 +43,10 @@ const DefaultOnePasswordToken = ""
 const DefaultOnePasswordItemName = "vault"
 const DefaultOnePasswordItemNamespace = "vault"
 
+const OnePasswordItemGroup = "onepassword.com"
+const OnePasswordItemKind = "OnePasswordItem"
+const OnePasswordItemVersion = "v1"
+
 func getEnvOrDefaultValue(envName, defaultValue string) string {
 	value := os.Getenv(envName)
 
@@ -60,9 +64,9 @@ func GetOnePasswordItemMetadata(kubeclient client.Client) (OnePasswordItemMetada
 
 	u := &unstructured.Unstructured{}
 	u.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "onepassword.com",
-		Kind:    "OnePasswordItem",
-		Version: "v1",
+		Group:   OnePasswordItemGroup,
+		Kind:    OnePasswordItemKind,
+		Version: OnePasswordItemVersion,
 	})
 
 	err := kubeclient.Get(context.Background(), client.ObjectKey{
