@@ -22,6 +22,8 @@ jobs:
           path: |
             go-build-cache
           key: go-build-cache-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-build-cache-
 
       - name: inject cache into docker
         uses: reproducible-containers/buildkit-cache-dance@v3.1.0
