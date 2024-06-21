@@ -10,6 +10,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
+          ssh-key: "${{secrets.COMMIT_KEY}}"
           fetch-tags: true
           fetch-depth: 0
       - name: Get next version number
