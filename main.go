@@ -5,13 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/1Password/connect-sdk-go/connect"
-	"github.com/1Password/connect-sdk-go/onepassword"
 	"github.com/Erik142/vault-op-autounseal/internal/config"
+	"github.com/Erik142/vault-op-autounseal/internal/onepassword"
 	"github.com/hashicorp/vault/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -67,6 +65,24 @@ func GetVaultKeysFromSecret(clientset *kubernetes.Clientset) ([]string, error) {
 	return keys, nil
 }
 
+func GetOnePasswordKeyMap(initResponse *api.InitResponse) map[string]string {
+	vaultKeys := make(map[string]string, 0)
+
+	for i, key := range initResponse.KeysB64 {
+		mapKey := fmt.Sprintf("key-%d", (i + 1))
+		vaultKeys[mapKey] = key
+	}
+
+	for i, key := range initResponse.RecoveryKeysB64 {
+		mapKey := fmt.Sprintf("recoverykey-%d", (i + 1))
+		vaultKeys[mapKey] = key
+	}
+
+	vaultKeys["root-token"] = initResponse.RootToken
+
+	return vaultKeys
+}
+
 func GetVaultPodApiAddresses(clientset *kubernetes.Clientset) ([]string, error) {
 	apiaddrs := make([]string, 0)
 
@@ -115,55 +131,6 @@ func GetVaultPodApiAddresses(clientset *kubernetes.Clientset) ([]string, error) 
 	return apiaddrs, nil
 }
 
-func PushVaultKeys(initResponse *api.InitResponse) error {
-	client := connect.NewClient(Config.OnePassword.Host, Config.OnePassword.Token)
-
-	secret, err := client.GetItem(Config.OnePassword.ItemMetadata.Name, Config.OnePassword.ItemMetadata.Vault)
-
-	if err != nil {
-		for i, key := range initResponse.KeysB64 {
-			fmt.Printf("key-%d: %v\n", (i + 1), key)
-		}
-
-		for i, key := range initResponse.RecoveryKeysB64 {
-			fmt.Printf("recoverykey-%d: %v\n", (i + 1), key)
-		}
-
-		fmt.Printf("root-token: %v\n", initResponse.RootToken)
-
-		return fmt.Errorf("Could not update 1password Vault keys: %v\n", err)
-	}
-
-	updatedFields := make([]*onepassword.ItemField, 0)
-
-	for _, field := range secret.Fields {
-		label := field.Label
-
-		if strings.HasPrefix(label, "key-") {
-			index, err := strconv.Atoi(strings.ReplaceAll(label, "key-", ""))
-
-			if err != nil {
-				return fmt.Errorf("Could not parse 1Password secret key index: %v\n", err)
-			}
-
-			index = index - 1
-
-			field.Value = initResponse.KeysB64[index]
-		}
-
-		if label == "root-token" {
-			field.Value = initResponse.RootToken
-		}
-
-		updatedFields = append(updatedFields, field)
-	}
-
-	secret.Fields = updatedFields
-	client.UpdateItem(secret, "")
-
-	return nil
-}
-
 func (self *Vault) Init() error {
 	isInitialized := true
 
@@ -198,7 +165,9 @@ func (self *Vault) Init() error {
 
 		self.Keys = initResult.KeysB64
 
-		return PushVaultKeys(initResult)
+		opKeys := GetOnePasswordKeyMap(initResult)
+
+		return onepassword.UpdateSecret(opKeys)
 	}
 
 	return nil
