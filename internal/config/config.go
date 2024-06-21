@@ -51,6 +51,8 @@ const OnePasswordItemVersion = "v1"
 const Spec = "spec"
 const ItemPath = "itemPath"
 
+var config *Config
+
 func getEnvOrDefaultValue(envName, defaultValue string) string {
 	value := os.Getenv(envName)
 
@@ -122,16 +124,36 @@ func GetOnePasswordItemMetadata(kubeclient client.Client) (OnePasswordItemMetada
 	return opItemMetadata, nil
 }
 
-func GetConfig(kubeclient client.Client) (Config, error) {
-	itemMetadata, err := GetOnePasswordItemMetadata(kubeclient)
+func Init(kubeclient client.Client) error {
+	if config == nil {
+		itemMetadata, err := GetOnePasswordItemMetadata(kubeclient)
 
-	return Config{
-		StatefulSetName:      getEnvOrDefaultValue(EnvVaultStatefulSetName, DefaultVaultStatefulSetName),
-		StatefulSetNamespace: getEnvOrDefaultValue(EnvVaultStatefulSetNamespace, DefaultVaultStatefulSetNamespace),
-		OnePassword: OnePassword{
-			Host:         getEnvOrDefaultValue(EnvOnePasswordHost, DefaultOnePasswordHost),
-			Token:        getEnvOrDefaultValue(EnvOnePasswordToken, DefaultOnePasswordToken),
-			ItemMetadata: itemMetadata,
-		},
-	}, err
+		if err != nil {
+			return err
+		}
+
+		config = new(Config)
+		*config = Config{
+			StatefulSetName:      getEnvOrDefaultValue(EnvVaultStatefulSetName, DefaultVaultStatefulSetName),
+			StatefulSetNamespace: getEnvOrDefaultValue(EnvVaultStatefulSetNamespace, DefaultVaultStatefulSetNamespace),
+			OnePassword: OnePassword{
+				Host:         getEnvOrDefaultValue(EnvOnePasswordHost, DefaultOnePasswordHost),
+				Token:        getEnvOrDefaultValue(EnvOnePasswordToken, DefaultOnePasswordToken),
+				ItemMetadata: itemMetadata,
+			},
+		}
+
+	}
+
+	return nil
+}
+
+func Get() (*Config, error) {
+	var err error
+
+	if config == nil {
+		err = fmt.Errorf("Configuration has not been initialized")
+	}
+
+	return config, err
 }

@@ -27,7 +27,7 @@ type Vault struct {
 	ApiAddresses []string
 }
 
-var Config config.Config
+var Config *config.Config
 
 func NewVault(clientset *kubernetes.Clientset) (*Vault, error) {
 	keys, _ := GetVaultKeysFromSecret(clientset)
@@ -277,10 +277,16 @@ func main() {
 
 	clientset := kubernetes.NewForConfigOrDie(restConfig)
 
-	Config, err = config.GetConfig(client)
+	err = config.Init(client)
 
 	if err != nil {
 		panic(fmt.Errorf("Could not create application configuration: %v\n", err))
+	}
+
+	Config, err = config.Get()
+
+	if err != nil {
+		panic(err)
 	}
 
 	for true {
