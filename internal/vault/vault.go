@@ -8,6 +8,7 @@ import (
 	"github.com/Erik142/vault-op-autounseal/internal/config"
 	"github.com/Erik142/vault-op-autounseal/internal/onepassword"
 	"github.com/hashicorp/vault/api"
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -124,8 +125,9 @@ func getPodApiAddresses(clientset *kubernetes.Clientset) ([]string, error) {
 					if env.Name == "VAULT_API_ADDR" {
 						apiaddr := env.Value
 						apiaddr = strings.ReplaceAll(apiaddr, "$(POD_IP)", pod.Status.PodIP)
-						fmt.Printf("Found Vault API address: %v\n", apiaddr)
 						apiaddrs = append(apiaddrs, apiaddr)
+
+						log.Infof("Found Vault API address: %v\n", apiaddr)
 						break
 					}
 				}
@@ -200,7 +202,7 @@ func (self *Vault) Unseal() error {
 			continue
 		}
 
-		fmt.Printf("Found sealed Vault Pod with API address: %v\n", apiaddr)
+		log.Infof("Found sealed Vault Pod with API address: %v\n", apiaddr)
 
 		for _, key := range self.Keys {
 			sealResponse, err := client.Sys().Unseal(key)

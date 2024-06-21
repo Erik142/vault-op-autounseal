@@ -5,12 +5,13 @@ import (
 	"path/filepath"
 
 	"github.com/Erik142/vault-op-autounseal/internal/controller"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 )
 
-func main() {
+func getRestConfig() (*rest.Config, error) {
 	var kubeconfig *string
 	if home := homedir.HomeDir(); home != "" {
 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
@@ -24,12 +25,25 @@ func main() {
 
 	if err != nil {
 		restConfig, err = rest.InClusterConfig()
-		if err != nil {
-			panic(err.Error())
-		}
 	}
 
-	c, err := controller.New(restConfig)
+	return restConfig, err
+}
+
+func main() {
+	log.SetFormatter(&log.JSONFormatter{})
+
+	var restConfig *rest.Config
+	var c *controller.AutoUnsealController
+	var err error
+
+	if restConfig, err = getRestConfig(); err != nil {
+		panic(err)
+	}
+
+	if c, err = controller.New(restConfig); err != nil {
+		panic(err)
+	}
 
 	if err := c.Reconcile(); err != nil {
 		panic(err)

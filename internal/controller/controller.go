@@ -7,6 +7,7 @@ import (
 
 	"github.com/Erik142/vault-op-autounseal/internal/config"
 	"github.com/Erik142/vault-op-autounseal/internal/vault"
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -47,12 +48,12 @@ func (self *AutoUnsealController) Reconcile() error {
 		_, err := self.ClientSet.AppsV1().StatefulSets(self.Config.StatefulSetNamespace).Get(context.Background(), self.Config.StatefulSetName, metav1.GetOptions{})
 
 		if err != nil {
-			fmt.Printf("Waiting for Vault Statefulset '%s' to be created...\n", self.Config.StatefulSetName)
+			log.Infof("Waiting for Vault Statefulset '%s' to be created...\n", self.Config.StatefulSetName)
 			time.Sleep(5 * time.Second)
 			continue
 		}
 
-		fmt.Printf("Found Vault Statefulset '%s'!\n", self.Config.StatefulSetName)
+		log.Infof("Found Vault Statefulset '%s'!\n", self.Config.StatefulSetName)
 		break
 	}
 
@@ -60,19 +61,19 @@ func (self *AutoUnsealController) Reconcile() error {
 		vault, err := vault.New(self.ClientSet)
 
 		if err != nil {
-			fmt.Println(err)
+			log.Error(err)
 			time.Sleep(5 * time.Second)
 			continue
 		}
 
 		if err = vault.Init(); err != nil {
-			fmt.Println(err)
+			log.Error(err)
 			time.Sleep(5 * time.Second)
 			continue
 		}
 
 		if err = vault.Unseal(); err != nil {
-			fmt.Println(err)
+			log.Error(err)
 		}
 
 		time.Sleep(5 * time.Second)

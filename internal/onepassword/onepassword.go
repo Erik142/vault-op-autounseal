@@ -5,6 +5,7 @@ import (
 	"github.com/1Password/connect-sdk-go/connect"
 	"github.com/1Password/connect-sdk-go/onepassword"
 	"github.com/Erik142/vault-op-autounseal/internal/config"
+	log "github.com/sirupsen/logrus"
 	"strings"
 )
 
@@ -21,7 +22,7 @@ func UpdateSecret(keys map[string]string) error {
 
 	if err != nil {
 		for name, key := range keys {
-			fmt.Printf("%v: %v\n", name, key)
+			log.Infof("%v: %v\n", name, key)
 		}
 
 		return fmt.Errorf("Could not update 1password Vault keys: %v\n", err)
