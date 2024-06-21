@@ -11,7 +11,7 @@ all: build
 .PHONY: build
 build:
 	go mod download
-	go build -v -o ./vault-op-autounseal
+	go build -v -o $(TOP)/vault-onepassword-controller $(TOP)/cmd/autounseal.go
 
 .PHONY: version_bump
 version_bump:

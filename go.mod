@@ -7,6 +7,7 @@ toolchain go1.22.2
 require (
 	github.com/1Password/connect-sdk-go v1.5.3
 	github.com/hashicorp/vault/api v1.9.0
+	github.com/sirupsen/logrus v1.9.3
 	k8s.io/apimachinery v0.30.0
 	k8s.io/client-go v0.30.0
 	sigs.k8s.io/controller-runtime v0.18.2
@@ -55,7 +56,7 @@ require (
 	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/oauth2 v0.12.0 // indirect
-	golang.org/x/sys v0.18.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/term v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
