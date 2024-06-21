@@ -53,7 +53,7 @@ func (self *AutoUnsealController) Reconcile() error {
 			continue
 		}
 
-		log.Infof("Found Vault Statefulset '%s'!", self.Config.StatefulSetName)
+		log.Infof("Found Vault Statefulset '%s'", self.Config.StatefulSetName)
 		break
 	}
 

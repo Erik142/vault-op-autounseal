@@ -127,7 +127,7 @@ func getPodApiAddresses(clientset *kubernetes.Clientset) ([]string, error) {
 						apiaddr = strings.ReplaceAll(apiaddr, "$(POD_IP)", pod.Status.PodIP)
 						apiaddrs = append(apiaddrs, apiaddr)
 
-						log.Infof("Found Vault API address: %v", apiaddr)
+						log.Debugf("Found Vault API address: %v", apiaddr)
 						break
 					}
 				}

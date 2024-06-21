@@ -11,15 +11,22 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-func getRestConfig() (*rest.Config, error) {
-	var kubeconfig *string
+var debug *bool
+var kubeconfig *string
+
+func parseFlags() {
 	if home := homedir.HomeDir(); home != "" {
 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 	} else {
 		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	}
-	flag.Parse()
 
+	debug = flag.Bool("debug", false, "(optional) print debug messages")
+
+	flag.Parse()
+}
+
+func getRestConfig() (*rest.Config, error) {
 	// use the current context in kubeconfig
 	restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 
@@ -31,7 +38,12 @@ func getRestConfig() (*rest.Config, error) {
 }
 
 func main() {
+	parseFlags()
 	log.SetFormatter(&log.JSONFormatter{})
+
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+	}
 
 	var restConfig *rest.Config
 	var c *controller.AutoUnsealController
