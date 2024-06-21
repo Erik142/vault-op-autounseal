@@ -1,5 +1,10 @@
-FROM golang:latest
+FROM golang:alpine AS builder
+RUN apk add --no-cache make
 WORKDIR /go/src/app
 COPY ./ ./
 RUN make
-CMD ["vault-op-autounseal"]
+
+FROM alpine
+WORKDIR /root/
+COPY --from=builder /go/src/app ./app
+CMD ["./app/vault-op-autounseal"]
