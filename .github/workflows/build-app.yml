@@ -15,6 +15,22 @@ jobs:
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+      - name: Cache
+        uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            go-build-cache
+          key: go-build-cache-${{ hashFiles('**/go.sum') }}
+
+      - name: inject cache into docker
+        uses: reproducible-containers/buildkit-cache-dance@v3.1.0
+        with:
+          cache-map: |
+            {
+              "go-build-cache": "/root/.cache/go-build"
+            }
+          skip-extraction: ${{ steps.cache.outputs.cache-hit }}
       - name: Build container image
         uses: docker/build-push-action@v5
         with:
@@ -23,5 +39,5 @@ jobs:
           push: false
           tags: |
               ghcr.io/erik142/vault-op-autounseal:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=autounseal
+          cache-to: type=gha,ignore-error=true,mode=max,scope=autounseal
