@@ -20,6 +20,8 @@ type Vault struct {
 	ApiAddresses []string
 }
 
+var labelMap map[string]string = map[string]string{"app.kubernetes.io/instance": "vault", "component": "server"}
+
 func New(clientset *kubernetes.Clientset) (*Vault, error) {
 	keys, _ := getKeysFromSecret(clientset)
 	apiaddrs, err := getPodApiAddresses(clientset)
@@ -96,18 +98,6 @@ func getPodApiAddresses(clientset *kubernetes.Clientset) ([]string, error) {
 		return nil, err
 	}
 
-	statefulset, err := clientset.AppsV1().StatefulSets(c.StatefulSetNamespace).Get(context.Background(), c.StatefulSetName, metav1.GetOptions{})
-
-	if err != nil {
-		return nil, err
-	}
-
-	labelMap, err := metav1.LabelSelectorAsMap(statefulset.Spec.Selector)
-
-	if err != nil {
-		return nil, err
-	}
-
 	pods, err := clientset.CoreV1().Pods(c.StatefulSetNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()})
 
 	if err != nil {
@@ -138,6 +128,8 @@ func getPodApiAddresses(clientset *kubernetes.Clientset) ([]string, error) {
 	if len(apiaddrs) == 0 {
 		return nil, fmt.Errorf("Could not find Vault API addresses")
 	}
+
+	log.Debugf("Found %d Vault server Pods", len(apiaddrs))
 
 	return apiaddrs, nil
 }

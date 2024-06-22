@@ -1,14 +1,12 @@
 package controller
 
 import (
-	"context"
 	"fmt"
 	"time"
 
 	"github.com/Erik142/vault-op-autounseal/internal/config"
 	"github.com/Erik142/vault-op-autounseal/internal/vault"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,19 +42,6 @@ func New(restConfig *rest.Config) (*AutoUnsealController, error) {
 }
 
 func (self *AutoUnsealController) Reconcile() error {
-	for true {
-		_, err := self.ClientSet.AppsV1().StatefulSets(self.Config.StatefulSetNamespace).Get(context.Background(), self.Config.StatefulSetName, metav1.GetOptions{})
-
-		if err != nil {
-			log.Infof("Waiting for Vault Statefulset '%s' to be created...", self.Config.StatefulSetName)
-			time.Sleep(5 * time.Second)
-			continue
-		}
-
-		log.Infof("Found Vault Statefulset '%s'", self.Config.StatefulSetName)
-		break
-	}
-
 	for true {
 		vault, err := vault.New(self.ClientSet)
 
