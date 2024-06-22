@@ -54,9 +54,18 @@ spec:
         - name: vault-1password-autounseal
           image: ghcr.io/erik142/vault-op-autounseal:0.2.0
           imagePullPolicy: Always
+          args: ["-config", "/app/config.yaml"]
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
           env:
             - name: ONEPASSWORD_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: onepassword-token
                   key: onepassword-token
+      volumes:
+        - name: config
+          configMap:
+            name: vault-1password-autounseal
