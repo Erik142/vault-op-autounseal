@@ -15,9 +15,40 @@ https://github.com/Erik142/vault-op-autounseal/assets/4168364/890673b0-17ae-4ce4
 
 ### Installation using Deployment
 
-Vault 1Password Autounseal Controller can be installed using the [manifest file](examples/deployment.yaml). The manifest file will install the necessary RBAC items as well as the Deployment itself. However, in order to install Vault 1Password Autounseal Controller, the Deployment should be customized using the following environment variables:
+Vault 1Password Autounseal Controller can be installed using the [manifest file](examples/deployment.yaml). The manifest file will install the necessary RBAC items as well as the Deployment itself. The application can be configured by means of a yaml configuration file. A [ConfigMap manifest](examples/config.yaml) that is compatible with the Deployment manifest mentioned above can be found in the repository. Download the manifest and modify the configuration values:
 <br/>
 <br/>
+
+```yaml
+vaultNamespace: vault
+onepassword:
+  host: op-connect.svc.cluster.local
+  secretMetadata:
+    name: vault
+    namespace: vault
+    vault: DevOps
+```
+<br/>
+<br/>
+
+Apply the customized ConfigMap manifest:
+
+```sh
+kubectl apply -f ./config.yaml
+```
+
+Then, create a Secret object containing the 1Password Connect Token. An example Secret manifest that is compatible with the Deployment mentioned above can be found [here](examples/secret.yaml)
+
+Finally, apply the Deployment manifest from this repository:
+
+```sh
+kubectl apply -f https://raw.githubusercontent.com/Erik142/vault-op-autounseal/master/examples/deployment.yaml
+```
+
+Alternatively, the application can be configured using environment variables:
+<br/>
+<br/>
+
 
 | Environment variable | Default value | Description |
 | -------------------- | ------------- | ----------- |
@@ -26,10 +57,12 @@ Vault 1Password Autounseal Controller can be installed using the [manifest file]
 | ONEPASSWORD_TOKEN | "" | The 1Password Connect Token |
 | ONEPASSWORD_HOSTNAME | op-connect.svc.cluster.local | The hostname of the 1Password Connect server |
 | VAULT_NAMESPACE | vault | The namespace of the Vault server StatefulSet |
+
+
 <br/>
 <br/>
 
-Download the manifest file, customize the environment variables, and apply it to the Kubernetes cluster:
+In this case, download the manifest file, customize the environment variables, and apply it to the Kubernetes cluster:
 
 ```sh
 kubectl apply -f ./deployment.yaml
