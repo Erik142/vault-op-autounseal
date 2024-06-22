@@ -52,7 +52,7 @@ spec:
       serviceAccountName: vault-1password-autounseal
       containers:
         - name: vault-1password-autounseal
-          image: ghcr.io/erik142/vault-op-autounseal:0.2.1
+          image: ghcr.io/erik142/vault-op-autounseal:0.3.0
           imagePullPolicy: Always
           args: ["-config", "/app/config.yaml"]
           volumeMounts:
