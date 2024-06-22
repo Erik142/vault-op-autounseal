@@ -14,6 +14,7 @@ import (
 var debug *bool
 var kubeconfig *string
 var appconfig *string
+var token *string
 
 func parseFlags() {
 	if home := homedir.HomeDir(); home != "" {
@@ -24,6 +25,7 @@ func parseFlags() {
 
 	appconfig = flag.String("config", "", "absolute path to the application config file")
 	debug = flag.Bool("debug", false, "(optional) print debug messages")
+	token = flag.String("token", "", "1Password Connect token")
 
 	flag.Parse()
 }
@@ -55,7 +57,7 @@ func main() {
 		panic(err)
 	}
 
-	if c, err = controller.New(restConfig, *appconfig); err != nil {
+	if c, err = controller.New(restConfig, *appconfig, *token); err != nil {
 		panic(err)
 	}
 

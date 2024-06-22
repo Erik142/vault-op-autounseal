@@ -20,7 +20,7 @@ type Config struct {
 
 type OnePassword struct {
 	Host         string                  `yaml:"host"`
-	Token        string                  `yaml:"token"`
+	Token        string                  `yaml:"-"`
 	ItemMetadata OnePasswordItemMetadata `yaml:"secretMetadata"`
 }
 
@@ -122,7 +122,7 @@ func GetOnePasswordItemMetadata(kubeclient client.Client) (OnePasswordItemMetada
 	return opItemMetadata, nil
 }
 
-func InitFromFile(configPath string) error {
+func InitFromFile(configPath string, token string) error {
 	var configBytes []byte
 	var fileinfo fs.FileInfo
 	var err error
@@ -141,15 +141,22 @@ func InitFromFile(configPath string) error {
 		}
 
 		config = new(Config)
+
 		if err = yaml.Unmarshal(configBytes, config); err != nil {
 			return err
 		}
+
+		if token == "" {
+			token = getEnvOrDefaultValue(EnvOnePasswordToken, DefaultOnePasswordToken)
+		}
+
+		config.OnePassword.Token = token
 	}
 
 	return nil
 }
 
-func Init(kubeclient client.Client) error {
+func Init(kubeclient client.Client, token string) error {
 	if config == nil {
 		itemMetadata, err := GetOnePasswordItemMetadata(kubeclient)
 
@@ -165,6 +172,10 @@ func Init(kubeclient client.Client) error {
 				Token:        getEnvOrDefaultValue(EnvOnePasswordToken, DefaultOnePasswordToken),
 				ItemMetadata: itemMetadata,
 			},
+		}
+
+		if token != "" {
+			config.OnePassword.Token = token
 		}
 
 	}
