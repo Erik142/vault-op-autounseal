@@ -3,42 +3,40 @@ package config
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"strings"
 
+	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Config struct {
-	StatefulSetName      string
-	StatefulSetNamespace string
-	OnePassword          OnePassword
+	VaultNamespace string      `yaml:"vaultNamespace"`
+	OnePassword    OnePassword `yaml:"onepassword"`
 }
 
 type OnePassword struct {
-	Host         string
-	Token        string
-	ItemMetadata OnePasswordItemMetadata
+	Host         string                  `yaml:"host"`
+	Token        string                  `yaml:"-"`
+	ItemMetadata OnePasswordItemMetadata `yaml:"secretMetadata"`
 }
 
 type OnePasswordItemMetadata struct {
-	Name      string
-	Namespace string
-	Vault     string
+	Name      string `yaml:"name"`
+	Namespace string `yaml:"namespace"`
+	Vault     string `yaml:"vault"`
 }
 
-const EnvVaultStatefulSetName = "VAULT_STATEFULSET_NAME"
-const EnvVaultStatefulSetNamespace = "VAULT_STATEFULSET_NAMESPACE"
 const EnvVaultNamespace = "VAULT_NAMESPACE"
 const EnvOnePasswordHost = "ONEPASSWORD_HOSTNAME"
 const EnvOnePasswordToken = "ONEPASSWORD_TOKEN"
 const EnvOnePasswordItemName = "ONEPASSWORD_ITEM_NAME"
 const EnvOnePasswordItemNamespace = "ONEPASSWORD_ITEM_NAMESPACE"
 
-const DefaultVaultStatefulSetName = "vault"
-const DefaultVaultStatefulSetNamespace = "vault"
+const DefaultVaultNamespace = "vault"
 const DefaultOnePasswordHost = "op-connect.svc.cluster.local"
 const DefaultOnePasswordToken = ""
 const DefaultOnePasswordItemName = "vault"
@@ -124,7 +122,41 @@ func GetOnePasswordItemMetadata(kubeclient client.Client) (OnePasswordItemMetada
 	return opItemMetadata, nil
 }
 
-func Init(kubeclient client.Client) error {
+func InitFromFile(configPath string, token string) error {
+	var configBytes []byte
+	var fileinfo fs.FileInfo
+	var err error
+
+	if config == nil {
+		if fileinfo, err = os.Stat(configPath); err != nil {
+			return err
+		}
+
+		if fileinfo.IsDir() {
+			return fmt.Errorf("The configuration file path '%s' is a directory, not a file", configPath)
+		}
+
+		if configBytes, err = os.ReadFile(configPath); err != nil {
+			return err
+		}
+
+		config = new(Config)
+
+		if err = yaml.Unmarshal(configBytes, config); err != nil {
+			return err
+		}
+
+		if token == "" {
+			token = getEnvOrDefaultValue(EnvOnePasswordToken, DefaultOnePasswordToken)
+		}
+
+		config.OnePassword.Token = token
+	}
+
+	return nil
+}
+
+func Init(kubeclient client.Client, token string) error {
 	if config == nil {
 		itemMetadata, err := GetOnePasswordItemMetadata(kubeclient)
 
@@ -134,13 +166,16 @@ func Init(kubeclient client.Client) error {
 
 		config = new(Config)
 		*config = Config{
-			StatefulSetName:      getEnvOrDefaultValue(EnvVaultStatefulSetName, DefaultVaultStatefulSetName),
-			StatefulSetNamespace: getEnvOrDefaultValue(EnvVaultStatefulSetNamespace, DefaultVaultStatefulSetNamespace),
+			VaultNamespace: getEnvOrDefaultValue(EnvVaultNamespace, DefaultVaultNamespace),
 			OnePassword: OnePassword{
 				Host:         getEnvOrDefaultValue(EnvOnePasswordHost, DefaultOnePasswordHost),
 				Token:        getEnvOrDefaultValue(EnvOnePasswordToken, DefaultOnePasswordToken),
 				ItemMetadata: itemMetadata,
 			},
+		}
+
+		if token != "" {
+			config.OnePassword.Token = token
 		}
 
 	}

@@ -20,8 +20,10 @@ type Vault struct {
 	ApiAddresses []string
 }
 
+var labelMap map[string]string = map[string]string{"app.kubernetes.io/instance": "vault", "component": "server"}
+
 func New(clientset *kubernetes.Clientset) (*Vault, error) {
-	keys, _ := getKeysFromSecret(clientset)
+	keys, _ := onepassword.GetKeysFromSecret(clientset)
 	apiaddrs, err := getPodApiAddresses(clientset)
 
 	if err != nil {
@@ -42,32 +44,6 @@ func newApiClient(apiaddr string) (*api.Client, error) {
 	vaultconfig.Address = apiaddr
 	vaultconfig.ConfigureTLS(&api.TLSConfig{Insecure: true})
 	return api.NewClient(vaultconfig)
-}
-
-func getKeysFromSecret(clientset *kubernetes.Clientset) ([]string, error) {
-	keys := make([]string, 0)
-	c, err := config.Get()
-
-	if err != nil {
-		return nil, err
-	}
-
-	secret, err := clientset.CoreV1().Secrets(c.OnePassword.ItemMetadata.Namespace).Get(context.Background(), c.OnePassword.ItemMetadata.Name, metav1.GetOptions{})
-
-	if err != nil {
-		return keys, err
-	}
-
-	for key, value := range secret.Data {
-		if strings.HasPrefix(key, "key") {
-			if string(value) == "" {
-				return keys, fmt.Errorf("Key '%s' value is empty.\n", key)
-			}
-			keys = append(keys, string(value))
-		}
-	}
-
-	return keys, nil
 }
 
 func getOnePasswordKeyMap(initResponse *api.InitResponse) map[string]string {
@@ -96,19 +72,7 @@ func getPodApiAddresses(clientset *kubernetes.Clientset) ([]string, error) {
 		return nil, err
 	}
 
-	statefulset, err := clientset.AppsV1().StatefulSets(c.StatefulSetNamespace).Get(context.Background(), c.StatefulSetName, metav1.GetOptions{})
-
-	if err != nil {
-		return nil, err
-	}
-
-	labelMap, err := metav1.LabelSelectorAsMap(statefulset.Spec.Selector)
-
-	if err != nil {
-		return nil, err
-	}
-
-	pods, err := clientset.CoreV1().Pods(c.StatefulSetNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()})
+	pods, err := clientset.CoreV1().Pods(c.VaultNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()})
 
 	if err != nil {
 		return nil, err
@@ -138,6 +102,8 @@ func getPodApiAddresses(clientset *kubernetes.Clientset) ([]string, error) {
 	if len(apiaddrs) == 0 {
 		return nil, fmt.Errorf("Could not find Vault API addresses")
 	}
+
+	log.Debugf("Found %d Vault server Pods", len(apiaddrs))
 
 	return apiaddrs, nil
 }
