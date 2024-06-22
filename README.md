@@ -37,7 +37,11 @@ Apply the customized ConfigMap manifest:
 kubectl apply -f ./config.yaml
 ```
 
-Then, create a Secret object containing the 1Password Connect Token. An example Secret manifest that is compatible with the Deployment mentioned above can be found [here](examples/secret.yaml)
+Then, create a Secret object containing the 1Password Connect Token. An example Secret manifest that is compatible with the Deployment mentioned above can be found [here](examples/secret.yaml). Apply the customized Secret manifest:
+
+```sh
+kubectl apply -f ./secret.yaml
+```
 
 Finally, apply the Deployment manifest from this repository:
 
