@@ -3,7 +3,7 @@
 script_dir="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 cd "$script_dir" || exit 1
 
-latest_version_tag="$(git describe --abbrev=0 --tags --match="v[0-9]*.[0-9]*.[0-9]*")"
+latest_version_tag="$(git tag -l --sort=-v:refname | head -1)"
 latest_version="${latest_version_tag//v/}"
 
 major_version_prefixes=( "release" )
