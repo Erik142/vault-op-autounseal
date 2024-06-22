@@ -23,7 +23,7 @@ type Vault struct {
 var labelMap map[string]string = map[string]string{"app.kubernetes.io/instance": "vault", "component": "server"}
 
 func New(clientset *kubernetes.Clientset) (*Vault, error) {
-	keys, _ := getKeysFromSecret(clientset)
+	keys, _ := onepassword.GetKeysFromSecret(clientset)
 	apiaddrs, err := getPodApiAddresses(clientset)
 
 	if err != nil {
@@ -44,32 +44,6 @@ func newApiClient(apiaddr string) (*api.Client, error) {
 	vaultconfig.Address = apiaddr
 	vaultconfig.ConfigureTLS(&api.TLSConfig{Insecure: true})
 	return api.NewClient(vaultconfig)
-}
-
-func getKeysFromSecret(clientset *kubernetes.Clientset) ([]string, error) {
-	keys := make([]string, 0)
-	c, err := config.Get()
-
-	if err != nil {
-		return nil, err
-	}
-
-	secret, err := clientset.CoreV1().Secrets(c.OnePassword.ItemMetadata.Namespace).Get(context.Background(), c.OnePassword.ItemMetadata.Name, metav1.GetOptions{})
-
-	if err != nil {
-		return keys, err
-	}
-
-	for key, value := range secret.Data {
-		if strings.HasPrefix(key, "key") {
-			if string(value) == "" {
-				return keys, fmt.Errorf("Key '%s' value is empty.\n", key)
-			}
-			keys = append(keys, string(value))
-		}
-	}
-
-	return keys, nil
 }
 
 func getOnePasswordKeyMap(initResponse *api.InitResponse) map[string]string {
