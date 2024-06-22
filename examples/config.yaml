@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-1password-autounseal
+data:
+  config.yaml: |-
+    vaultNamespace: vault
+    onepassword:
+      host: op-connect.svc.cluster.local
+      secretMetadata:
+        name: vault
+        namespace: vault
+        vault: DevOps
