@@ -13,6 +13,7 @@ import (
 
 var debug *bool
 var kubeconfig *string
+var appconfig *string
 
 func parseFlags() {
 	if home := homedir.HomeDir(); home != "" {
@@ -21,6 +22,7 @@ func parseFlags() {
 		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	}
 
+	appconfig = flag.String("config", "", "absolute path to the application config file")
 	debug = flag.Bool("debug", false, "(optional) print debug messages")
 
 	flag.Parse()
@@ -53,7 +55,7 @@ func main() {
 		panic(err)
 	}
 
-	if c, err = controller.New(restConfig); err != nil {
+	if c, err = controller.New(restConfig, *appconfig); err != nil {
 		panic(err)
 	}
 

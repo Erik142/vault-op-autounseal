@@ -17,7 +17,7 @@ type AutoUnsealController struct {
 	Config    *config.Config
 }
 
-func New(restConfig *rest.Config) (*AutoUnsealController, error) {
+func New(restConfig *rest.Config, configFilepath string) (*AutoUnsealController, error) {
 	client, err := client.New(restConfig, client.Options{})
 
 	if err != nil {
@@ -26,7 +26,11 @@ func New(restConfig *rest.Config) (*AutoUnsealController, error) {
 
 	clientset := kubernetes.NewForConfigOrDie(restConfig)
 
-	err = config.Init(client)
+	if configFilepath != "" {
+		err = config.InitFromFile(configFilepath)
+	} else {
+		err = config.Init(client)
+	}
 
 	if err != nil {
 		panic(fmt.Errorf("Could not create application configuration: %v\n", err))

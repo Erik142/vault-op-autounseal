@@ -3,29 +3,31 @@ package config
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"strings"
 
+	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Config struct {
-	VaultNamespace string
-	OnePassword    OnePassword
+	VaultNamespace string      `yaml:"vaultNamespace"`
+	OnePassword    OnePassword `yaml:"onepassword"`
 }
 
 type OnePassword struct {
-	Host         string
-	Token        string
-	ItemMetadata OnePasswordItemMetadata
+	Host         string                  `yaml:"host"`
+	Token        string                  `yaml:"token"`
+	ItemMetadata OnePasswordItemMetadata `yaml:"secretMetadata"`
 }
 
 type OnePasswordItemMetadata struct {
-	Name      string
-	Namespace string
-	Vault     string
+	Name      string `yaml:"name"`
+	Namespace string `yaml:"namespace"`
+	Vault     string `yaml:"vault"`
 }
 
 const EnvVaultNamespace = "VAULT_NAMESPACE"
@@ -118,6 +120,33 @@ func GetOnePasswordItemMetadata(kubeclient client.Client) (OnePasswordItemMetada
 	opItemMetadata.Namespace = opItemNamespace
 
 	return opItemMetadata, nil
+}
+
+func InitFromFile(configPath string) error {
+	var configBytes []byte
+	var fileinfo fs.FileInfo
+	var err error
+
+	if config == nil {
+		if fileinfo, err = os.Stat(configPath); err != nil {
+			return err
+		}
+
+		if fileinfo.IsDir() {
+			return fmt.Errorf("The configuration file path '%s' is a directory, not a file", configPath)
+		}
+
+		if configBytes, err = os.ReadFile(configPath); err != nil {
+			return err
+		}
+
+		config = new(Config)
+		if err = yaml.Unmarshal(configBytes, config); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func Init(kubeclient client.Client) error {
