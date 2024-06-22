@@ -98,7 +98,7 @@ func getPodApiAddresses(clientset *kubernetes.Clientset) ([]string, error) {
 		return nil, err
 	}
 
-	pods, err := clientset.CoreV1().Pods(c.StatefulSetNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()})
+	pods, err := clientset.CoreV1().Pods(c.VaultNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()})
 
 	if err != nil {
 		return nil, err

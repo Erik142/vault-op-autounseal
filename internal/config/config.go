@@ -12,8 +12,8 @@ import (
 )
 
 type Config struct {
-	StatefulSetNamespace string
-	OnePassword          OnePassword
+	VaultNamespace string
+	OnePassword    OnePassword
 }
 
 type OnePassword struct {
@@ -28,14 +28,13 @@ type OnePasswordItemMetadata struct {
 	Vault     string
 }
 
-const EnvVaultStatefulSetNamespace = "VAULT_STATEFULSET_NAMESPACE"
 const EnvVaultNamespace = "VAULT_NAMESPACE"
 const EnvOnePasswordHost = "ONEPASSWORD_HOSTNAME"
 const EnvOnePasswordToken = "ONEPASSWORD_TOKEN"
 const EnvOnePasswordItemName = "ONEPASSWORD_ITEM_NAME"
 const EnvOnePasswordItemNamespace = "ONEPASSWORD_ITEM_NAMESPACE"
 
-const DefaultVaultStatefulSetNamespace = "vault"
+const DefaultVaultNamespace = "vault"
 const DefaultOnePasswordHost = "op-connect.svc.cluster.local"
 const DefaultOnePasswordToken = ""
 const DefaultOnePasswordItemName = "vault"
@@ -131,7 +130,7 @@ func Init(kubeclient client.Client) error {
 
 		config = new(Config)
 		*config = Config{
-			StatefulSetNamespace: getEnvOrDefaultValue(EnvVaultStatefulSetNamespace, DefaultVaultStatefulSetNamespace),
+			VaultNamespace: getEnvOrDefaultValue(EnvVaultNamespace, DefaultVaultNamespace),
 			OnePassword: OnePassword{
 				Host:         getEnvOrDefaultValue(EnvOnePasswordHost, DefaultOnePasswordHost),
 				Token:        getEnvOrDefaultValue(EnvOnePasswordToken, DefaultOnePasswordToken),

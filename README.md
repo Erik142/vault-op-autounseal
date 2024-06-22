@@ -25,7 +25,7 @@ Vault 1Password Autounseal Controller can be installed using the [manifest file]
 | ONEPASSWORD_ITEM_NAMESPACE | vault | The namespace of the OnePasswordItem object which injects the 1Password secret |
 | ONEPASSWORD_TOKEN | "" | The 1Password Connect Token |
 | ONEPASSWORD_HOSTNAME | op-connect.svc.cluster.local | The hostname of the 1Password Connect server |
-| VAULT_STATEFULSET_NAMESPACE | vault | The namespace of the Vault server StatefulSet |
+| VAULT_NAMESPACE | vault | The namespace of the Vault server StatefulSet |
 <br/>
 <br/>
 
